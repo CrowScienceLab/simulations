@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>경로에 따른 공의 운동 비교 · 분석형 시뮬레이터</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --line: #d9e0ea;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent2: #dc2626;
+      --accent3: #0f766e;
+      --shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 16px 18px 10px;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .panel-body {
+      padding: 16px 18px 18px;
+    }
+
+    .control-group {
+      margin-bottom: 18px;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    input[type="number"] {
+      width: 86px;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 10px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    .btn-start { background: var(--accent); color: white; }
+    .btn-pause { background: #64748b; color: white; }
+    .btn-reset { background: #e5e7eb; color: #111827; }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+      background: #f8fafc;
+      border: 1px solid #e5edf5;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-rows: auto auto auto;
+      gap: 20px;
+    }
+
+    .canvas-box {
+      padding: 16px;
+    }
+
+    canvas {
+      width: 100%;
+      display: block;
+      background: #fcfdff;
+      border: 1px solid #dbe4ef;
+      border-radius: 16px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(240px, 1fr));
+      gap: 14px;
+    }
+
+    .stat-card {
+      border: 1px solid #e5edf5;
+      border-radius: 16px;
+      padding: 14px;
+      background: #fbfdff;
+    }
+
+    .stat-card h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .badge {
+      display: inline-block;
+      min-width: 12px;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .red { background: var(--accent2); }
+    .blue { background: var(--accent); }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px dashed #e5e7eb;
+      font-size: 14px;
+    }
+
+    .kv:last-child { border-bottom: none; }
+
+    .analysis {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #334155;
+      background: #f8fbff;
+      border: 1px solid #deebff;
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>경로 A(언덕) vs 경로 B(웅덩이) 분석형 시뮬레이터</h1>
+    <p class="subtitle">
+      단순 애니메이션이 아니라, 초기 속도 조절 · 시간-속도 그래프 · 그래프 아래 면적(이동거리) 비교까지 한 번에 볼 수 있도록 구성한 버전입니다.
+    </p>
+
+    <div class="layout">
+      <aside class="panel">
+        <div class="panel-header">
+          <h2>제어 및 설정</h2>
+        </div>
+        <div class="panel-body">
+          <div class="control-group">
+            <label>
+              <span>초기 속도 v₀</span>
+              <span id="speedValue">180 px/s</span>
+            </label>
+            <div class="control-row">
+              <input id="speedSlider" type="range" min="80" max="320" step="5" value="180" />
+              <input id="speedNumber" type="number" min="80" max="320" step="5" value="180" />
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button class="btn-start" id="startBtn">시작</button>
+            <button class="btn-pause" id="pauseBtn">일시정지</button>
+            <button class="btn-reset" id="resetBtn">초기화</button>
+          </div>
+
+          <div class="note">
+            시간-속도 그래프의 면적은 <b>이동거리</b>를 의미합니다.<br>
+            두 경로는 모양만 위아래로 반전된 형태이므로, 전체 경로 길이는 거의 같고 면적값도 거의 같게 나타납니다.<br>
+            반면 도착 시간은 웅덩이 경로가 더 짧아질 수 있습니다.
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>운동 시뮬레이션</h2>
+          </div>
+          <div class="canvas-box">
+            <canvas id="trackCanvas" width="920" height="400"></canvas>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>시간-속도 그래프</h2>
+          </div>
+          <div class="canvas-box">
+            <canvas id="graphCanvas" width="920" height="380"></canvas>
+            <div class="small" style="margin-top:10px;">
+              붉은 곡선: 경로 A(언덕), 파란 곡선: 경로 B(웅덩이). 그래프 아래 반투명 영역의 넓이는 각 공의 이동거리에 해당합니다.
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>수치 분석</h2>
+          </div>
+          <div class="panel-body">
+            <div class="stats-grid">
+              <div class="stat-card">
+                <h3><span class="badge red"></span>경로 A (위로 볼록)</h3>
+                <div class="kv"><span>현재 시간</span><strong id="timeA">0.00 s</strong></div>
+                <div class="kv"><span>현재 속도</span><strong id="currentSpeedA">180.00 px/s</strong></div>
+                <div class="kv"><span>최대 속도</span><strong id="maxSpeedA">180.00 px/s</strong></div>
+                <div class="kv"><span>도착 시간</span><strong id="finishA">-</strong></div>
+                <div class="kv"><span>그래프 면적(이동거리)</span><strong id="areaA">0.00 px</strong></div>
+              </div>
+
+              <div class="stat-card">
+                <h3><span class="badge blue"></span>경로 B (아래로 오목)</h3>
+                <div class="kv"><span>현재 시간</span><strong id="timeB">0.00 s</strong></div>
+                <div class="kv"><span>현재 속도</span><strong id="currentSpeedB">180.00 px/s</strong></div>
+                <div class="kv"><span>최대 속도</span><strong id="maxSpeedB">180.00 px/s</strong></div>
+                <div class="kv"><span>도착 시간</span><strong id="finishB">-</strong></div>
+                <div class="kv"><span>그래프 면적(이동거리)</span><strong id="areaB">0.00 px</strong></div>
+              </div>
+            </div>
+
+            <div class="analysis" id="analysisBox" style="margin-top:16px;">
+              아직 실행 전입니다. 초기 속도를 조절한 뒤 시작 버튼을 눌러 비교해 보세요.
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const trackCanvas = document.getElementById('trackCanvas');
+    const tctx = trackCanvas.getContext('2d');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const gctx = graphCanvas.getContext('2d');
+
+    const speedSlider = document.getElementById('speedSlider');
+    const speedNumber = document.getElementById('speedNumber');
+    const speedValue = document.getElementById('speedValue');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const startX = 60;
+    const endX = 860;
+    const curveStart = 220;
+    const curveEnd = 660;
+    const curveDepth = 60;
+    const gravity = 120; // px/s^2 (시각화용 가상 중력)
+
+    let animationId = null;
+    let lastTimestamp = null;
+    let isRunning = false;
+
+    function createBall(baseY, color, isDip) {
+      const v0 = Number(speedSlider.value);
+      return {
+        x: startX,
+        y: baseY,
+        baseY,
+        color,
+        isDip,
+        v0,
+        speed: v0,
+        currentTime: 0,
+        maxSpeed: v0,
+        area: 0,
+        finished: false,
+        finishTime: null,
+        data: [{ t: 0, v: v0 }]
+      };
+    }
+
+    let ballA;
+    let ballB;
+
+    function resetState() {
+      ballA = createBall(145, '#dc2626', false);
+      ballB = createBall(295, '#2563eb', true);
+      isRunning = false;
+      lastTimestamp = null;
+      cancelAnimationFrame(animationId);
+      animationId = null;
+      updateStats();
+      updateAnalysis();
+      drawTrackScene();
+      drawGraph();
+    }
+
+    function syncSpeedInputs(value) {
+      const v = Math.max(80, Math.min(320, Number(value) || 180));
+      speedSlider.value = v;
+      speedNumber.value = v;
+      speedValue.textContent = `${v} px/s`;
+      if (!isRunning) {
+        resetState();
+      }
+    }
+
+    function getTrackY(x, baseY, isDip) {
+      if (x >= curveStart && x <= curveEnd) {
+        const theta = (x - curveStart) / (curveEnd - curveStart) * Math.PI;
+        const offset = Math.sin(theta) * curveDepth;
+        return isDip ? baseY + offset : baseY - offset;
+      }
+      return baseY;
+    }
+
+    function getSlope(x, isDip) {
+      if (x >= curveStart && x <= curveEnd) {
+        const theta = (x - curveStart) / (curveEnd - curveStart) * Math.PI;
+        const slope = Math.cos(theta) * curveDepth * (Math.PI / (curveEnd - curveStart));
+        return isDip ? slope : -slope;
+      }
+      return 0;
+    }
+
+    function getSpeedAtY(currentY, baseY, v0) {
+      const deltaH = currentY - baseY; // 아래로 갈수록 +
+      return Math.sqrt(Math.max(1, v0 * v0 + 2 * gravity * deltaH));
+    }
+
+    function updateBall(ball, dt) {
+      if (ball.finished) return;
+
+      ball.y = getTrackY(ball.x, ball.baseY, ball.isDip);
+      ball.speed = getSpeedAtY(ball.y, ball.baseY, ball.v0);
+      ball.maxSpeed = Math.max(ball.maxSpeed, ball.speed);
+
+      const slope = getSlope(ball.x, ball.isDip);
+      const dxdt = ball.speed / Math.sqrt(1 + slope * slope);
+      const nextX = ball.x + dxdt * dt;
+
+      ball.currentTime += dt;
+      ball.area += ball.speed * dt;
+      ball.data.push({ t: ball.currentTime, v: ball.speed });
+
+      ball.x = Math.min(endX, nextX);
+      ball.y = getTrackY(ball.x, ball.baseY, ball.isDip);
+
+      if (ball.x >= endX - 0.001) {
+        ball.finished = true;
+        ball.finishTime = ball.currentTime;
+      }
+    }
+
+    function drawTrack(baseY, isDip) {
+      tctx.beginPath();
+      tctx.moveTo(startX, baseY);
+      for (let x = startX; x <= endX; x += 2) {
+        tctx.lineTo(x, getTrackY(x, baseY, isDip));
+      }
+      tctx.lineWidth = 4;
+      tctx.strokeStyle = '#334155';
+      tctx.stroke();
+    }
+
+    function drawBall(ball) {
+      tctx.beginPath();
+      tctx.arc(ball.x, ball.y, 12, 0, Math.PI * 2);
+      tctx.fillStyle = ball.color;
+      tctx.fill();
+      tctx.lineWidth = 2.5;
+      tctx.strokeStyle = '#ffffff';
+      tctx.stroke();
+    }
+
+    function drawTrackScene() {
+      tctx.clearRect(0, 0, trackCanvas.width, trackCanvas.height);
+
+      const grad = tctx.createLinearGradient(0, 0, 0, trackCanvas.height);
+      grad.addColorStop(0, '#f9fcff');
+      grad.addColorStop(1, '#eef5ff');
+      tctx.fillStyle = grad;
+      tctx.fillRect(0, 0, trackCanvas.width, trackCanvas.height);
+
+      drawTrack(ballA.baseY, false);
+      drawTrack(ballB.baseY, true);
+
+      tctx.save();
+      tctx.setLineDash([7, 6]);
+      tctx.strokeStyle = '#94a3b8';
+      tctx.lineWidth = 2;
+      tctx.beginPath(); tctx.moveTo(startX, 40); tctx.lineTo(startX, 355); tctx.stroke();
+      tctx.beginPath(); tctx.moveTo(endX, 40); tctx.lineTo(endX, 355); tctx.stroke();
+      tctx.restore();
+
+      tctx.fillStyle = '#0f172a';
+      tctx.font = 'bold 16px Malgun Gothic';
+      tctx.fillText('출발선', startX - 22, 28);
+      tctx.fillText('도착선', endX - 22, 28);
+      tctx.fillText('경로 A (위로 볼록한 언덕)', 60, 105);
+      tctx.fillText('경로 B (아래로 오목한 웅덩이)', 60, 255);
+
+      drawBall(ballA);
+      drawBall(ballB);
+    }
+
+    function drawAxes(x0, y0, w, h, maxTime, maxSpeed) {
+      gctx.strokeStyle = '#475569';
+      gctx.lineWidth = 1.5;
+      gctx.beginPath();
+      gctx.moveTo(x0, y0);
+      gctx.lineTo(x0, y0 - h);
+      gctx.lineTo(x0 + w, y0 - h);
+      gctx.moveTo(x0, y0);
+      gctx.lineTo(x0 + w, y0);
+      gctx.stroke();
+
+      gctx.fillStyle = '#334155';
+      gctx.font = '13px Malgun Gothic';
+      gctx.fillText('속도 v', x0 - 8, y0 - h - 10);
+      gctx.fillText('시간 t', x0 + w + 8, y0 + 4);
+
+      gctx.strokeStyle = '#e2e8f0';
+      gctx.fillStyle = '#64748b';
+      gctx.lineWidth = 1;
+
+      for (let i = 0; i <= 5; i++) {
+        const gy = y0 - (h * i / 5);
+        const value = maxSpeed * i / 5;
+        gctx.beginPath();
+        gctx.moveTo(x0, gy);
+        gctx.lineTo(x0 + w, gy);
+        gctx.stroke();
+        gctx.fillText(value.toFixed(0), x0 - 38, gy + 4);
+      }
+
+      for (let i = 0; i <= 6; i++) {
+        const gx = x0 + (w * i / 6);
+        const value = maxTime * i / 6;
+        gctx.beginPath();
+        gctx.moveTo(gx, y0);
+        gctx.lineTo(gx, y0 - h);
+        gctx.stroke();
+        gctx.fillText(value.toFixed(1), gx - 10, y0 + 20);
+      }
+    }
+
+    function drawCurveWithArea(data, color, x0, y0, w, h, maxTime, maxSpeed) {
+      if (data.length < 2) return;
+
+      gctx.save();
+      gctx.beginPath();
+      data.forEach((p, i) => {
+        const x = x0 + (p.t / maxTime) * w;
+        const y = y0 - (p.v / maxSpeed) * h;
+        if (i === 0) gctx.moveTo(x, y0);
+        gctx.lineTo(x, y);
+      });
+      const last = data[data.length - 1];
+      gctx.lineTo(x0 + (last.t / maxTime) * w, y0);
+      gctx.closePath();
+      gctx.globalAlpha = 0.16;
+      gctx.fillStyle = color;
+      gctx.fill();
+      gctx.restore();
+
+      gctx.beginPath();
+      data.forEach((p, i) => {
+        const x = x0 + (p.t / maxTime) * w;
+        const y = y0 - (p.v / maxSpeed) * h;
+        if (i === 0) gctx.moveTo(x, y);
+        else gctx.lineTo(x, y);
+      });
+      gctx.strokeStyle = color;
+      gctx.lineWidth = 2.6;
+      gctx.stroke();
+    }
+
+    function drawLegend() {
+      const y = 28;
+      gctx.font = '14px Malgun Gothic';
+
+      gctx.fillStyle = '#dc2626';
+      gctx.fillRect(30, y - 10, 24, 4);
+      gctx.fillStyle = '#1f2937';
+      gctx.fillText('경로 A', 62, y);
+
+      gctx.fillStyle = '#2563eb';
+      gctx.fillRect(140, y - 10, 24, 4);
+      gctx.fillStyle = '#1f2937';
+      gctx.fillText('경로 B', 172, y);
+    }
+
+    function drawGraph() {
+      gctx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+      const grad = gctx.createLinearGradient(0, 0, 0, graphCanvas.height);
+      grad.addColorStop(0, '#fdfefe');
+      grad.addColorStop(1, '#f7fbff');
+      gctx.fillStyle = grad;
+      gctx.fillRect(0, 0, graphCanvas.width, graphCanvas.height);
+
+      const x0 = 70;
+      const y0 = 320;
+      const w = 800;
+      const h = 250;
+
+      const lastTime = Math.max(
+        ballA.data[ballA.data.length - 1]?.t || 0,
+        ballB.data[ballB.data.length - 1]?.t || 0,
+        1
+      );
+      const maxTime = Math.max(2, lastTime * 1.08);
+      const maxSpeed = Math.max(ballA.maxSpeed, ballB.maxSpeed, ballA.v0, ballB.v0) * 1.18;
+
+      drawAxes(x0, y0, w, h, maxTime, maxSpeed);
+      drawCurveWithArea(ballA.data, '#dc2626', x0, y0, w, h, maxTime, maxSpeed);
+      drawCurveWithArea(ballB.data, '#2563eb', x0, y0, w, h, maxTime, maxSpeed);
+      drawLegend();
+    }
+
+    function fmt(value, unit = '') {
+      if (value === null || value === undefined || Number.isNaN(value)) return '-';
+      return `${value.toFixed(2)}${unit}`;
+    }
+
+    function updateStats() {
+      document.getElementById('timeA').textContent = fmt(ballA.currentTime, ' s');
+      document.getElementById('timeB').textContent = fmt(ballB.currentTime, ' s');
+      document.getElementById('currentSpeedA').textContent = fmt(ballA.speed, ' px/s');
+      document.getElementById('currentSpeedB').textContent = fmt(ballB.speed, ' px/s');
+      document.getElementById('maxSpeedA').textContent = fmt(ballA.maxSpeed, ' px/s');
+      document.getElementById('maxSpeedB').textContent = fmt(ballB.maxSpeed, ' px/s');
+      document.getElementById('finishA').textContent = ballA.finishTime ? fmt(ballA.finishTime, ' s') : '-';
+      document.getElementById('finishB').textContent = ballB.finishTime ? fmt(ballB.finishTime, ' s') : '-';
+      document.getElementById('areaA').textContent = fmt(ballA.area, ' px');
+      document.getElementById('areaB').textContent = fmt(ballB.area, ' px');
+    }
+
+    function updateAnalysis() {
+      const box = document.getElementById('analysisBox');
+
+      if (!ballA.finished && !ballB.finished && ballA.currentTime === 0 && ballB.currentTime === 0) {
+        box.innerHTML = '아직 실행 전입니다. 초기 속도를 조절한 뒤 시작 버튼을 눌러 비교해 보세요.';
+        return;
+      }
+
+      const finishReady = ballA.finished && ballB.finished;
+
+      if (!finishReady) {
+        const fasterNow = ballA.speed > ballB.speed ? '현재는 경로 A의 속도가 더 큽니다.' :
+                          ballB.speed > ballA.speed ? '현재는 경로 B의 속도가 더 큽니다.' :
+                          '현재 두 경로의 속도가 거의 같습니다.';
+        box.innerHTML = `
+          시뮬레이션이 진행 중입니다. ${fasterNow}<br>
+          시간-속도 그래프 아래 면적은 시간이 지날수록 누적 이동거리를 의미합니다.
+        `;
+        return;
+      }
+
+      const winner = ballA.finishTime < ballB.finishTime ? '경로 A' : '경로 B';
+      const diffT = Math.abs(ballA.finishTime - ballB.finishTime);
+      const diffArea = Math.abs(ballA.area - ballB.area);
+
+      box.innerHTML = `
+        <b>${winner}</b>가 더 먼저 도착했습니다. 도착 시간 차이는 <b>${diffT.toFixed(2)} s</b>입니다.<br>
+        그래프 아래 면적 차이는 <b>${diffArea.toFixed(2)} px</b>로, 이는 두 경로의 전체 이동거리가 거의 같다는 뜻입니다.<br>
+        즉, 웅덩이 경로는 초반에 속도가 더 커져 더 빨리 도착할 수 있지만, 두 경로의 총 이동거리는 거의 비슷하게 해석할 수 있습니다.
+      `;
+    }
+
+    function animate(timestamp) {
+      if (!isRunning) return;
+      if (lastTimestamp == null) lastTimestamp = timestamp;
+
+      const dt = Math.min(0.04, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+
+      updateBall(ballA, dt);
+      updateBall(ballB, dt);
+
+      drawTrackScene();
+      drawGraph();
+      updateStats();
+      updateAnalysis();
+
+      if (ballA.finished && ballB.finished) {
+        isRunning = false;
+        animationId = null;
+        return;
+      }
+
+      animationId = requestAnimationFrame(animate);
+    }
+
+    startBtn.addEventListener('click', () => {
+      if (ballA.finished && ballB.finished) {
+        resetState();
+      }
+      if (!isRunning) {
+        isRunning = true;
+        lastTimestamp = null;
+        animationId = requestAnimationFrame(animate);
+      }
+    });
+
+    pauseBtn.addEventListener('click', () => {
+      isRunning = false;
+      lastTimestamp = null;
+      cancelAnimationFrame(animationId);
+      animationId = null;
+      updateAnalysis();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      resetState();
+    });
+
+    speedSlider.addEventListener('input', (e) => syncSpeedInputs(e.target.value));
+    speedNumber.addEventListener('input', (e) => syncSpeedInputs(e.target.value));
+
+    syncSpeedInputs(180);
+  </script>
+</body>
+</html>
